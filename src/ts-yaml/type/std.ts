@@ -1,4 +1,4 @@
-import {Type, wellknown as ns} from './index';
+import {Type, wellknown as ns} from './type';
 import * as common from '../common';
 import {Kind, YamlException} from '../common';
 

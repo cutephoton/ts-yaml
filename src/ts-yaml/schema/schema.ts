@@ -108,8 +108,8 @@ export class KindTagMap extends Map<TagWithKind, Type> {
 }
 
 export class Schema {
-    static create (schemaOrTypes : SchemaArrayable, types? : TypeArrayable);
-    static create (schemaOrTypes : SchemaArrayable);
+    static create (schemaOrTypes : SchemaArrayable, types : TypeArrayable);
+    static create (schemaOrTypes : TypeArrayable);
     static create (schemaOrTypes : SchemaOrTypeArrayable, argtypes? : TypeArrayable) {
         var schemas : Schema[], types : Type[];
 

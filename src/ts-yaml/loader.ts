@@ -1594,7 +1594,7 @@ function readDocument(state:State) {
 }
 
 
-function loadDocuments(input:string, options:Options) {
+function loadDocuments(input:string, options?:Options) {
     input = String(input);
     options = options || {};
 
@@ -1650,7 +1650,7 @@ export function loadAll(input, iterator, options: LoadOptions) {
 }
 */
 
-export function load(input : string, options : Options) {
+export function load(input : string, options? : Options) {
     var documents = loadDocuments(input, options);
 
     if (documents.length === 0) {
@@ -1672,6 +1672,6 @@ export function safeLoadAll(input : string, output, options : LoadOptions) {
 }
 */
 
-export function safeLoad(input, options : Options) {
+export function safeLoad(input, options? : Options) {
     return load(input, { schema: DEFAULT_SAFE_SCHEMA,... options});
 }
