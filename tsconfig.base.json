@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2018",
+    "sourceMap": true,
+    "noImplicitAny": false,
+    "moduleResolution": "node",
+    "removeComments": false,
+    "strictNullChecks": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "traceResolution": false /* Report module resolution log messages. */,
+    "listEmittedFiles": false /* Print names of generated files part of the compilation. */,
+    "listFiles": false /* Print names of files part of the compilation. */,
+    "pretty": true /* Stylize errors and messages using color and context. */,
+    "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
+    "noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */,
+    "lib": ["es2018", "dom"],
+    "types": ["node"],
+    "typeRoots": ["node_modules/@types", "src/types"],
+    "experimentalDecorators": true,
+    "baseUrl": "./"
+  },
+  "exclude": [
+    "node_modules"
+  ]
+}

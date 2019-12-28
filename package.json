@@ -1,0 +1,37 @@
+{
+  "name": "@cutephoton/ts-yaml",
+  "version": "1.0.0",
+  "description": "YAML 1.2 parser and serializer (js-yaml remix ES-style)",
+  "keywords": [
+    "yaml",
+    "parser",
+    "serializer",
+    "deserializer"
+  ],
+  "homepage": "https://github.com/cutephoton/ts-yaml",
+  "main": "build/test/test/index.js",
+  "typings": "build/lib/index.d.ts",
+  "module": "build/lib/index.js",
+  "author": "Brett Foster <fosterb@cutephoton.com>",
+  "contributors": [
+    "Vladimir Zapparov <dervus.grim@gmail.com>",
+    "Aleksey V Zapparov <ixti@member.fsf.org> (http://www.ixti.net/)",
+    "Vitaly Puzrin <vitaly@rcdesign.ru> (https://github.com/puzrin)",
+    "Martin Grenfell <martin.grenfell@gmail.com> (http://got-ravings.blogspot.com)"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node .",
+    "build & test": "npm run build && npm run test",
+    "clean": "rm -rf build/*"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ts-node": "^8.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.5",
+    "typescript": "^3.7.3",
+    "argparse": "^1.0.10"
+  }
+}
