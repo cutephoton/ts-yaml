@@ -22,6 +22,8 @@ Things that are not goals:
 API Differences:
  * YAMLException was renamed to YamlException
  * Location of schemas/types changes:
-   * ts-yaml/type exports builtinType
-   * ts-yaml/schema exports builtinSchema 
+   * ts-yaml exports builtin{type,schema}
+   * Alternatively:
+     * ts-yaml/type => builtinType
+     * ts-yaml/schema => builtinSchema
  * JS-types not implemented. (There is no difference between safe schema and full.)

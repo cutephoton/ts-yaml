@@ -28,6 +28,7 @@ export class Type {
     readonly represent?     : ((data: any,style?:string) => any) | { [x: string]: (data: object, style? : string) => any } | null;
     readonly defaultStyle?  : string | null;
     readonly styleAliases?  : { [x: string]: any; };
+    readonly implicitType  : boolean;
 
     constructor(
         tag : Tag|string,
@@ -44,6 +45,7 @@ export class Type {
         this.represent    = options.represent    || null;
         this.defaultStyle = options.defaultStyle || null;
         this.styleAliases = compileStyleAliases(options.styleAliases || null);
+        this.implicitType = options.implicitType || false;
     }
 
     toString (): string {
@@ -60,6 +62,7 @@ export interface TypeOptions {
     represent?: ((data: any,style?:string) => any) | { [x: string]: (data: any) => any } | null;
     defaultStyle?: string| null;
     styleAliases?: { [x: string]: any; }| null;
+    implicitType? : boolean;
 }
 
 export interface State {
