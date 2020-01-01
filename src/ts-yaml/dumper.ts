@@ -4,7 +4,7 @@ import {
 }                                                   from "./common";
 import * as common                                  from "./common";
 import {Type}                                       from "./type";
-import {Schema,KindTagMap,buildinSchema}            from "./schema";
+import {Schema,KindTagMap,buildinSchema,builder}    from "./schema";
 export interface Options {
     /** indentation width to use (in spaces). */
     indent?: number;
@@ -721,34 +721,46 @@ function writeBlockMapping(state : State, level : number, object : any, compact 
 }
 
 function detectType(state : State, object : any, explicit : boolean) {
-    var _result, typeList : KindTagMap, index, length, type, style;
+    var typeList : KindTagMap,  style : string, matchedType : Type|null;
 
     typeList = explicit ? state.explicitTypes : state.implicitTypes;
 
-    for (let type of typeList.values()) {
+    matchedType = builder.getYamlType(object);
 
-        if ((type.instanceOf  || type.predicate) &&
-            (!type.instanceOf || ((typeof object === 'object') && (object instanceof type.instanceOf))) &&
-            (!type.predicate  || type.predicate(object))) {
+    if (!matchedType) {
+        for (let type of typeList.values()) {
+            if ((type.instanceOf || type.predicate) &&
+                (!type.instanceOf || ((typeof object === 'object') && (object instanceof type.instanceOf))) &&
+                (!type.predicate || type.predicate(object))) {
+                matchedType = type;
+            }
+        }
+    } else {
+        // in this situation, this check is pretty useless.
+        if (matchedType.predicate && !matchedType.predicate(object)) {
+            matchedType = null;
+        }
+    }
 
-            state.tag = explicit ? type.tag : '?';
+    if (matchedType) {
+        let _result : any;
+        state.tag = explicit ? matchedType.tag : '?';
 
-            if (type.represent) {
-                style = state.styleMap[type.tag] || type.defaultStyle;
+        if (matchedType.represent) {
+            style = state.styleMap[matchedType.tag] || matchedType.defaultStyle;
 
-                if (_toString.call(type.represent) === '[object Function]') {
-                    _result = (type.represent as ((data: any,style?:string) => any))(object, style);
-                } else if (_hasOwnProperty.call(type.represent, style)) {
-                    _result = type.represent[style](object, style);
-                } else {
-                    throw new YamlException('!<' + type.tag + '> tag resolver accepts not "' + style + '" style');
-                }
-
-                state.dump = _result;
+            if (_toString.call(matchedType.represent) === '[object Function]') {
+                _result = (matchedType.represent as ((data: any, style?: string) => any))(object, style);
+            } else if (_hasOwnProperty.call(matchedType.represent, style)) {
+                _result = matchedType.represent![style](object, style);
+            } else {
+                throw new YamlException('!<' + matchedType.tag + '> tag resolver accepts not "' + style + '" style');
             }
 
-            return true;
+            state.dump = _result;
         }
+
+        return true;
     }
 
     return false;
@@ -875,7 +887,7 @@ function inspectNode(object : any , objects : any[], duplicatesIndexes : any[]) 
     }
 }
 
-export function dump(input : any, options : Options) {
+export function dump(input : any, options? : Options) {
     options = options || {};
 
     var state = new State(options);
@@ -887,7 +899,7 @@ export function dump(input : any, options : Options) {
     return '';
 }
 
-export function safeDump(input : any, options : Options) {
+export function safeDump(input : any, options? : Options) {
     return dump(input, { schema: DEFAULT_SAFE_SCHEMA,... options});
 }
 

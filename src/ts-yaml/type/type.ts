@@ -53,13 +53,19 @@ export class Type {
     }
 }
 
+export type ConstructFunc       = ((data: any) => any);
+export type ResolveFunc         = ((data: any) => boolean);
+export type PredicateFunc       = ((data: any) => boolean);
+export type RepresentFunc       = (data: any,style?:string)=>any;
+export type RepresentStyleFunc  = { [x: string]: RepresentFunc };
+
 export interface TypeOptions {
     kind?: Kind|null;
-    resolve?: ((data: any) => boolean) | null;
-    construct?: ((data: any) => any) | null;
+    resolve?: ResolveFunc | null;
+    construct?: ConstructFunc | null;
     instanceOf?: object| null;
-    predicate?: ((data: any) => boolean) | null;
-    represent?: ((data: any,style?:string) => any) | { [x: string]: (data: any) => any } | null;
+    predicate?: PredicateFunc | null;
+    represent?: RepresentFunc | { [x: string]: RepresentFunc } | null;
     defaultStyle?: string| null;
     styleAliases?: { [x: string]: any; }| null;
     implicitType? : boolean;

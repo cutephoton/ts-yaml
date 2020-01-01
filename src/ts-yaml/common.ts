@@ -1,5 +1,7 @@
+import {Schema} from "./schema";
+
 export enum Kind {
-    Sequence= "sequence", Mapping = "mapping", Scalar = "scalar", Fallback = "fallback",
+    Sequence= "sequence", Mapping = "mapping", Scalar = "scalar", Fallback = "fallback"
 }
 
 const PATTERN_TAG_HANDLE            = /^(?:!|!!|![a-z\-]+!)$/i;
@@ -242,6 +244,13 @@ export class Mark {
 
         return where;
     }
+}
+
+export interface BufferInfo {
+    uri         : string|null;
+}
+export interface Buffer extends BufferInfo {
+    content     : string;
 }
 
 /*

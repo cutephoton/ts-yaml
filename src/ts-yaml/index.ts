@@ -10,6 +10,8 @@ export import Type                  = itype.Type;
 export import Kind                  = icommon.Kind;
 export import Mark                  = icommon.Mark;
 
+export import builder               = ischema.builder;
+
 export namespace tag {
     export import TagURI            = icommon.TagURI;
     export import Tag               = icommon.Tag;

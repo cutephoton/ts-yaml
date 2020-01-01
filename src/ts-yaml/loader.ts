@@ -42,6 +42,8 @@ const enum Chomping {
     Keep = 3
 }
 
+
+
 const PATTERN_NON_PRINTABLE         = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x84\x86-\x9F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
 const PATTERN_NON_ASCII_LINE_BREAKS = /[\x85\u2028\u2029]/;
 const PATTERN_FLOW_INDICATORS       = /[,\[\]\{\}]/;
@@ -106,23 +108,23 @@ function fromDecimalCode(c:number):number {
 function simpleEscapeSequence(c:number):string {
     /* eslint-disable indent */
     return (c === 0x30/* 0 */) ? '\x00' :
-        (c === 0x61/* a */) ? '\x07' :
-            (c === 0x62/* b */) ? '\x08' :
-                (c === 0x74/* t */) ? '\x09' :
-                    (c === 0x09/* Tab */) ? '\x09' :
-                        (c === 0x6E/* n */) ? '\x0A' :
-                            (c === 0x76/* v */) ? '\x0B' :
-                                (c === 0x66/* f */) ? '\x0C' :
-                                    (c === 0x72/* r */) ? '\x0D' :
-                                        (c === 0x65/* e */) ? '\x1B' :
-                                            (c === 0x20/* Space */) ? ' ' :
-                                                (c === 0x22/* " */) ? '\x22' :
-                                                    (c === 0x2F/* / */) ? '/' :
-                                                        (c === 0x5C/* \ */) ? '\x5C' :
-                                                            (c === 0x4E/* N */) ? '\x85' :
-                                                                (c === 0x5F/* _ */) ? '\xA0' :
-                                                                    (c === 0x4C/* L */) ? '\u2028' :
-                                                                        (c === 0x50/* P */) ? '\u2029' : '';
+    (c === 0x61/* a */) ? '\x07' :
+    (c === 0x62/* b */) ? '\x08' :
+    (c === 0x74/* t */) ? '\x09' :
+    (c === 0x09/* Tab */) ? '\x09' :
+    (c === 0x6E/* n */) ? '\x0A' :
+    (c === 0x76/* v */) ? '\x0B' :
+    (c === 0x66/* f */) ? '\x0C' :
+    (c === 0x72/* r */) ? '\x0D' :
+    (c === 0x65/* e */) ? '\x1B' :
+    (c === 0x20/* Space */) ? ' ' :
+    (c === 0x22/* " */) ? '\x22' :
+    (c === 0x2F/* / */) ? '/' :
+    (c === 0x5C/* \ */) ? '\x5C' :
+    (c === 0x4E/* N */) ? '\x85' :
+    (c === 0x5F/* _ */) ? '\xA0' :
+    (c === 0x4C/* L */) ? '\u2028' :
+    (c === 0x50/* P */) ? '\u2029' : '';
 }
 
 function charFromCodepoint(c:number):string {
@@ -197,6 +199,8 @@ class State {
 
         this.documents          = [];
     }
+
+
 }
 
 function generateError(state:State, message:string) {
@@ -205,7 +209,7 @@ function generateError(state:State, message:string) {
         new Mark(state.filename, state.input, state.position, state.line, (state.position - state.lineStart)));
 }
 
-function throwWarning(state, message) {
+function throwWarning(state : State, message : string) {
     if (state.onWarning) {
         state.onWarning.call(null, generateError(state, message));
     }
@@ -268,7 +272,7 @@ var directiveHandlers = {
 };
 
 
-function captureSegment(state, start, end, checkJson) {
+function captureSegment(state : State, start : number, end : number, checkJson : boolean) {
     var _position, _length, _character, _result;
 
     if (start < end) {

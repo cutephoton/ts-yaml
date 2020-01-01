@@ -9,6 +9,7 @@ import {Type,TypeArrayable}                 from "../type";
 export type SchemaArrayable         = Iterable<Schema>|Schema;
 export type SchemaOrTypeArrayable   = TypeArrayable|SchemaArrayable;
 
+
 export class KindTagMap extends Map<TagWithKind, Type> {
     private _set : Set<Type> = new Set();
 
