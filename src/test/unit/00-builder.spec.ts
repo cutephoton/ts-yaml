@@ -66,13 +66,7 @@ class Address3 {
         }
     }
 }
-/*
 
-    @mySchemaBuilder.apply.expectType({
-        jsType: 'string',
-        accept: new Set(['CA','CO', 'AK', 'NY'])
-    })
- */
 @mySchemaBuilder.apply()
 class Address4 {
     @mySchemaBuilder.apply.property()

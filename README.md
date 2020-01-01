@@ -4,7 +4,7 @@ TS-YAML - YAML 1.2 parser / writer for JavaScript
 **Note: The packaging and release stuff isn't there yet.**
 
 This package provides a yaml 1.2 parsed based on the original
-[ja-yaml](https://github.com/nodeca/js-yaml) with the main difference
+[js-yaml](https://github.com/nodeca/js-yaml) with the main difference
 being the use of ES-style classes and refactoring.
 
 Changes:

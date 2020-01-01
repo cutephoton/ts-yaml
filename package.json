@@ -9,10 +9,11 @@
     "deserializer"
   ],
   "homepage": "https://github.com/cutephoton/ts-yaml",
-  "main": "build/test/index.js",
-  "typings": "build/lib/index.d.ts",
-  "module": "build/lib/index.js",
+  "main": "dist/test/index.js",
+  "typings": "dist/ts-yaml/index.d.ts",
+  "module": "dist/ts-yaml/index.js",
   "author": "Brett Foster <fosterb@cutephoton.com>",
+  "files": ["dist/ts-yaml", "README.md"],
   "contributors": [
     "Vladimir Zapparov <dervus.grim@gmail.com>",
     "Aleksey V Zapparov <ixti@member.fsf.org> (http://www.ixti.net/)",
@@ -22,7 +23,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "ava",
-    "clean": "rm -rf build"
+    "clean": "rm -rf build",
+    "prepare" :"npm run clean && npm run build",
+    "pack": "npm pack"
   },
   "license": "MIT",
   "dependencies": {
@@ -38,10 +41,10 @@
     "failFast": true,
     "verbose": true,
     "files": [
-      "build/**/*.spec.js"
+      "dist/**/*.spec.js"
     ],
     "sources": [
-      "build/**/*.js"
+      "dist/**/*.js"
     ]
   }
 }
