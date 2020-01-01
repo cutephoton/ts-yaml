@@ -9,7 +9,7 @@ import {
 } from "../type/type";
 import {Schema} from "./schema";
 
-class ClassBuilderError extends TypeError {
+export class TypeBuilderError extends TypeError {
     constructor(readonly target : any, readonly reason : string) {
         super(
             typeof target === 'function' ?
@@ -34,6 +34,7 @@ export const YamlApply                  : unique symbol = Symbol('yaml.YamlApply
 export const YamlRepresent              : unique symbol = Symbol('yaml.YamlRepresent');
 export const YamlResolve                : unique symbol = Symbol('yaml.YamlResolve');
 export const YamlPredicate              : unique symbol = Symbol('yaml.YamlPredicate');
+const        YamlBuilderState           : unique symbol = Symbol('yaml.YamlFieldSet');
 
 type AnyConstructor<T>                  = {new(...args:any[]): T};
 
@@ -44,6 +45,7 @@ interface YamlishConstructor<T extends YamlishInstance>  {
     [YamlConstruct]?        : ConstructFunc;
     [YamlPredicate]?        : PredicateFunc;
     [YamlRepresent]?        : RepresentFunc;
+    [YamlBuilderState]?     : DecoratorCollector<any>;
 }
 
 interface YamlishInstance {
@@ -97,6 +99,71 @@ function tagSanitize(defaultName: string, tag?:Tag, base?:TagURI) : Tag {
     }
 }
 
+class DecoratorCollector<T> {
+    private static gWeakMap = new WeakMap<YamlishConstructor<any>>();
+    private _properties = new Set<PropertyDetail>();
+
+    protected constructor(
+        readonly builder:SchemaBuilder,
+        readonly target:YamlishConstructor<T>
+    ) {}
+
+    addProperty (detail : PropertyDetail) {
+        this._properties.add(detail);
+    }
+
+    properties () : IterableIterator<PropertyDetail> {
+        return this._properties.values();
+    }
+
+    static get<T extends any> (builder:SchemaBuilder, obj:YamlishConstructor<T>|T) : DecoratorCollector<T>;
+    static get<T extends any> (builder:SchemaBuilder, obj:YamlishConstructor<T>|T, dontCreate?: boolean) : DecoratorCollector<T>|null;
+    static get<T extends any> (builder:SchemaBuilder, obj:YamlishConstructor<T>|T, dontCreate?: boolean) : DecoratorCollector<T>|null {
+        let cls : YamlishConstructor<T>;
+        if (typeof obj === 'function') {
+            cls = obj as YamlishConstructor<T>;
+        } else if (typeof obj === 'object') {
+            cls = obj.constructor as YamlishConstructor<T>;
+        } else {
+            throw new TypeError(`DecoratorCollector only supports class constructors or their prototypes.`);
+        }
+        let out = DecoratorCollector.gWeakMap.get(cls);
+        if (!out) {
+            if (dontCreate) {
+                return null;
+            }
+            DecoratorCollector.gWeakMap.set(cls, out = new DecoratorCollector(builder,cls));
+        }
+        if (out.builder !== builder) {
+            throw new TypeBuilderError(cls, 'uses decorator on different schema builder.');
+        }
+
+        return out;
+    }
+
+    static unlink<T extends any> (builder:SchemaBuilder, obj:YamlishConstructor<T>|T) : DecoratorCollector<T>|null {
+        let cls : YamlishConstructor<T>;
+        if (typeof obj === 'function') {
+            cls = obj as YamlishConstructor<T>;
+        } else if (typeof obj === 'object') {
+            cls = obj.constructor as YamlishConstructor<T>;
+        } else {
+            throw new TypeError(`DecoratorCollector only supports class constructors or their prototypes.`);
+        }
+        let out = DecoratorCollector.gWeakMap.get(cls);
+        if (!out) {
+            return null;
+        }
+        if (out.builder !== builder) {
+            throw new TypeBuilderError(cls, 'uses decorator on different schema builder.');
+        }
+
+        DecoratorCollector.gWeakMap.delete(cls);
+
+        return out;
+    }
+}
+
 class TypeBuilder<T> {
     readonly name                       : string;
     readonly kind                       : Kind;
@@ -127,11 +194,12 @@ class TypeBuilder<T> {
     readonly type                       : Type;
 
     constructor(
+        readonly schema                 : SchemaBuilder,
         readonly target                 : YamlishConstructor<T>,
         readonly options                : TypeBuilderOptions
     ) {
         if (typeof target !== 'function') {
-            throw new ClassBuilderError(target,`not a function or constructor.`);
+            throw new TypeBuilderError(target,`not a function or constructor.`);
         }
         this.name                   = target.name;
         this.tag                    = tagSanitize(this.name, options.tag, options.baseTagURI);
@@ -139,36 +207,36 @@ class TypeBuilder<T> {
         //this._knownSetters          = new Set();
 
         if (Reflect.has(target.prototype, YamlType)) {
-            throw new ClassBuilderError(target,`already been defined in a schema and been assigned a @@YamlType.`);
+            throw new TypeBuilderError(target,`already been defined in a schema and been assigned a @@YamlType.`);
         }
         // Loader
         if (Reflect.has(target, YamlConstruct)              && options.construct) {
-            throw new ClassBuilderError(target,`has both explicit @@YamlConstruct and 'option.construct'.`);
+            throw new TypeBuilderError(target,`has both explicit @@YamlConstruct and 'option.construct'.`);
         }
         if (Reflect.has(target, YamlResolve)                && options.resolve) {
-            throw new ClassBuilderError(target,`has both explicit @@YamlResolve and 'option.resolve'.`);
+            throw new TypeBuilderError(target,`has both explicit @@YamlResolve and 'option.resolve'.`);
         }
         // Dumper
         // ... match static functions
         if(Reflect.has(target, YamlPredicate)               && options.predicate) {
-            throw new ClassBuilderError(target, `has both explicit @@YamlPredicate and 'option.predicate'.`);
+            throw new TypeBuilderError(target, `has both explicit @@YamlPredicate and 'option.predicate'.`);
         }
         if (Reflect.has(target, YamlRepresent)              && options.represent) {
-            throw new ClassBuilderError(target,`has both explicit @@YamlRepresent and 'option.represent'.`);
+            throw new TypeBuilderError(target,`has both explicit @@YamlRepresent and 'option.represent'.`);
         }
         // ... match instance functions
         if (Reflect.has(target.prototype, YamlPredicate)    && options.predicate) {
-            throw new ClassBuilderError(target,`has both explicit prototype[@@YamlPredicate] and 'option.predicate'.`);
+            throw new TypeBuilderError(target,`has both explicit prototype[@@YamlPredicate] and 'option.predicate'.`);
         }
         if (Reflect.has(target.prototype, YamlRepresent)    && options.represent) {
-            throw new ClassBuilderError(target,`has both explicit prototype[@@YamlRepresent] and 'option.represent'.`);
+            throw new TypeBuilderError(target,`has both explicit prototype[@@YamlRepresent] and 'option.represent'.`);
         }
         // ... do not allow instance and static to conflict
         if (Reflect.has(target.prototype, YamlPredicate)    && Reflect.has(target, YamlPredicate)) {
-            throw new ClassBuilderError(target,`has both explicit prototype[@@YamlPredicate] and @@YamlPredicate.`);
+            throw new TypeBuilderError(target,`has both explicit prototype[@@YamlPredicate] and @@YamlPredicate.`);
         }
         if (Reflect.has(target.prototype, YamlRepresent)    && Reflect.has(target, YamlRepresent)) {
-            throw new ClassBuilderError(target,`has both explicit prototype[@@YamlRepresent] and @@YamlRepresent.`);
+            throw new TypeBuilderError(target,`has both explicit prototype[@@YamlRepresent] and @@YamlRepresent.`);
         }
 
         // Pull functions from options first for explicit
@@ -187,7 +255,7 @@ class TypeBuilder<T> {
             }
         } else {
             if (Reflect.has(target.prototype, YamlApply)) {
-                throw new ClassBuilderError(target,`has prototype[@@YamlApply] but is not using implicit constructor.`);
+                throw new TypeBuilderError(target,`has prototype[@@YamlApply] but is not using implicit constructor.`);
             }
         }
         if (!this._funcResolve && Reflect.has(target, YamlResolve)) {
@@ -224,13 +292,11 @@ class TypeBuilder<T> {
         this.kind                   = options.kind || ((this.hasImplicitApply||this.hasImplicitRepresent) && Kind.Mapping) || Kind.Fallback;
         // without an implicitly generated apply function, this step provides no additional value
         if (this.hasImplicits) {
-            if (!this.hasImplicitApply) {
-                this._initPropertyInfo();
-            }
+            this._initPropertyInfo();
 
             if (this.hasImplicitConstruct) {
                 if (this.target.length>0 && !this.options.noImplicitConstructorCheck) {
-                    throw new ClassBuilderError(this.target, `has implicit @@YamlConstruct, but constructor needs ${this.target.length} arguments.`);
+                    throw new TypeBuilderError(this.target, `has implicit @@YamlConstruct, but constructor needs ${this.target.length} arguments.`);
                 }
                 this._createImplicitCreate();
                 if (this.hasImplicitApply) {
@@ -268,6 +334,10 @@ class TypeBuilder<T> {
         }
     }
 
+    get decoratorCollector () : DecoratorCollector<T>|null {
+        return DecoratorCollector.get(this.schema, this.target, true);
+    }
+
     private _initPropertyInfo() {
         // Build the blacklist:
         let blacklist = this._blacklist;
@@ -280,12 +350,21 @@ class TypeBuilder<T> {
             this.options.blacklist.forEach(x => blacklist.add(x));
         }
         // Generate property listing, if specified
-        if (this.options.properties) {
+        let properties = this.options.properties && this.options.properties.values();
+        // if an explicit set of properties wasn't previously set, see if there are
+        // decorated properties.
+        if (!properties){
+            let decorated = this.decoratorCollector;
+            if (decorated) {
+                properties = decorated.properties();
+            }
+        }
+        if (properties) {
             //this._explicitProperties    = ( && new Set(Array.from(options.properties))) || undefined;
             let explicitYaml    = this._explicitYamlProperties  = new Map();
             let explicitObj     = this._explicitObjProperties   = new Map();
             // sort properties in priority order
-            let props           = new Set(Array.from(this.options.properties.values()).sort((a, b)=>
+            let props           = new Set(Array.from(properties).sort((a, b)=>
                  ((typeof a === 'object' && a.priority) || 0) - ((typeof b === 'object' && b.priority) || 0)
             ));
             for (let keyOrProp of props.values()) {
@@ -293,13 +372,13 @@ class TypeBuilder<T> {
                     let clone = {...keyOrProp};
                     if (!clone.yamlKey) {
                         if (typeof clone.key === 'symbol') {
-                            throw new ClassBuilderError(this.target, `specified property was a symbol without 'PropertyDetail.yamlKey'.`);
+                            throw new TypeBuilderError(this.target, `specified property was a symbol without 'PropertyDetail.yamlKey'.`);
                             //keyOrProp.yamlKey
                         }
                         clone.yamlKey = clone.key;
                     }
                     if (this._blacklist.has(clone.key)) {
-                        throw new ClassBuilderError(this.target, `specified property '${typeof clone.key === 'symbol' ? '<<symbol>>' : clone.key}' is on the blacklist.`);
+                        throw new TypeBuilderError(this.target, `specified property '${typeof clone.key === 'symbol' ? '<<symbol>>' : clone.key}' is on the blacklist.`);
                     }
                     explicitObj.set(clone.key, clone);
                     explicitYaml.set(clone.yamlKey, clone);
@@ -314,7 +393,7 @@ class TypeBuilder<T> {
 
     private _createImplicitRepresent () {
         if (this.kind!==Kind.Mapping) {
-            throw new ClassBuilderError(this.target, `has implicit @@YamlRepresent but is not mapping type.`);
+            throw new TypeBuilderError(this.target, `has implicit @@YamlRepresent but is not mapping type.`);
         }
 
         let blacklist           = this._blacklist;
@@ -323,17 +402,17 @@ class TypeBuilder<T> {
 
         if (this._explicitObjProperties) {
             let objProperties = this._explicitObjProperties;
-            function implicitRepresentProvided(data: SimpleMap<any>) : SimpleMap<any> {
-                let out : SimpleMap<any> = {};
+            function implicitRepresentProvided(data: any) : any {
+                let out : any = {};
                 for (let item of objProperties.values()) {
                     if (Reflect.has(data, item.key)) {
-                        data[item.yamlKey!] = item.key;
+                        out[item.yamlKey!] = data[item.key];
                     }
                 }
                 return out;
             }
 
-            this._funcApply = implicitRepresentProvided;
+            this._funcRepresent = implicitRepresentProvided;
         } else {
             function implicitRepresentAuto(data: SimpleMap<any>) : SimpleMap<any> {
                 let out : SimpleMap<any> = {};
@@ -351,13 +430,13 @@ class TypeBuilder<T> {
                 }
                 return out;
             }
-            this._funcApply = implicitRepresentAuto;
+            this._funcRepresent = implicitRepresentAuto;
         }
     }
 
     private _createImplicitConstruct () {
         if (!this._funcImplicitCreate || !this._funcApply) {
-            throw new ClassBuilderError(this.target, 'Implicit constructor is missing create/apply. (Internal error.)');
+            throw new TypeBuilderError(this.target, 'Implicit constructor is missing create/apply. (Internal error.)');
         }
         let construct   = this._funcImplicitCreate;
         let apply       = this._funcApply;
@@ -379,7 +458,7 @@ class TypeBuilder<T> {
 
     private _createImplicitApply () {
         if (this.kind!==Kind.Mapping) {
-            throw new ClassBuilderError(this.target, `has implicit @@YamlApply but is not mapping type.`);
+            throw new TypeBuilderError(this.target, `has implicit @@YamlApply but is not mapping type.`);
         }
 
         let blacklist           = this._blacklist;
@@ -392,7 +471,7 @@ class TypeBuilder<T> {
                 for (let item of yamlProperties.values()) {
                     if (Reflect.has(data, item.yamlKey!)) {
                         Reflect.set(this, item.key, data[item.yamlKey!]);
-                    } else if ('defaultValue' in item.defaultValue) {
+                    } else if ('defaultValue' in item) {
                         Reflect.set(this, item.key, typeof item.defaultValue === 'function' ? item.defaultValue() : item.defaultValue);
                     }
                 }
@@ -437,7 +516,7 @@ export class SchemaBuilder {
 
     addClass<T> (target : YamlishConstructor<T>, options? : TypeBuilderOptions) : Type {
         let opt : TypeBuilderOptions = {baseTagURI: this.baseURI, ...options};
-        let type = new TypeBuilder(target, opt).type;
+        let type = new TypeBuilder(this, target, opt).type;
         this.add(type);
         return type;
     }
@@ -446,6 +525,15 @@ export class SchemaBuilder {
         return (<T extends Function>(target:T) : T => {
             this.addClass(target as unknown as YamlishConstructor<any>, options);
             return target;
+        });
+    }
+
+    applyProperty (options?:Partial<PropertyDetail>) : PropertyDecorator {
+        return ((target: Object, propertyKey: string | symbol) : void => {
+            let deco = DecoratorCollector.get(this, target);
+            let deco2 = DecoratorCollector.get(this, target);
+            let x = deco === deco2;
+            deco.addProperty({key:propertyKey,...options});
         });
     }
 

@@ -7,11 +7,12 @@ export import buildinSchema     = ibuiltin;
 export import KindTagMap        = ischema.KindTagMap;
 
 export namespace builder {
-    export import SchemaBuilder = helper.SchemaBuilder;
-    export import YamlResolve   = helper.YamlResolve;
-    export import YamlPredicate = helper.YamlPredicate;
-    export import YamlRepresent = helper.YamlRepresent;
-    export import YamlConstruct = helper.YamlConstruct;
-    export import YamlApply     = helper.YamlApply;
-    export import getYamlType   = helper.getYamlType;
+    export import SchemaBuilder         = helper.SchemaBuilder;
+    export import TypeBuilderError      = helper.TypeBuilderError;
+    export import YamlResolve           = helper.YamlResolve;
+    export import YamlPredicate         = helper.YamlPredicate;
+    export import YamlRepresent         = helper.YamlRepresent;
+    export import YamlConstruct         = helper.YamlConstruct;
+    export import YamlApply             = helper.YamlApply;
+    export import getYamlType           = helper.getYamlType;
 }

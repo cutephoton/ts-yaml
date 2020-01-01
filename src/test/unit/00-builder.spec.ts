@@ -12,7 +12,7 @@ mySchemaBuilder.add(yaml.builtin.schema.DEFAULT_SAFE);
 class Person {
     first?          : string;
     last?           : string;
-    address?        : Address|Address2|Address3;
+    address?        : Address|Address2|Address3|Address4;
     constructor() {}
 }
 
@@ -63,15 +63,30 @@ class Address3 {
     }
 }
 
+@mySchemaBuilder.apply()
+class Address4 {
+    @mySchemaBuilder.applyProperty()
+    street?        : string;
+    @mySchemaBuilder.applyProperty({yamlKey:'blahcity'})
+    city?          : string;
+    @mySchemaBuilder.applyProperty({yamlKey:'blahzip', defaultValue: 11111})
+    zip?           : string;
+    @mySchemaBuilder.applyProperty({yamlKey:'blahstate'})
+    state?         : string;
+    constructor() {}
+}
+
+
 const mySchema = mySchemaBuilder.resolve();
 // -------------------------------------------------------------------------------------------
 
 test('Schema Builder - test', t => {
 
-    let persons = new Array<Person>(3);
+    let persons = new Array<Person>(4);
     persons[0] = new Person();
     persons[1] = new Person();
     persons[2] = new Person();
+    persons[3] = new Person();
 
     persons[0].address = new Address(1);
     persons[0].first                = 'Bob';
@@ -90,12 +105,20 @@ test('Schema Builder - test', t => {
     persons[1].address.zip          = '94019';
 
     persons[2].address = new Address3();
-    persons[2].first                = 'Jane';
-    persons[2].last                 = 'Stalwart';
-    persons[2].address.street       = '123 Random St.';
+    persons[2].first                = 'Robert';
+    persons[2].last                 = 'Jones';
+    persons[2].address.street       = '1 Hole Rd.';
     persons[2].address.state        = 'California';
-    persons[2].address.city         = 'Half Moon Bay';
-    persons[2].address.zip          = '94019';
+    persons[2].address.city         = 'Fremont';
+    persons[2].address.zip          = '94219';
+
+    persons[3].address = new Address4();
+    persons[3].first                = 'Killian';
+    persons[3].last                 = 'Gotcha';
+    persons[3].address.street       = '123 Piggy St.';
+    persons[3].address.state        = 'California';
+    persons[3].address.city         = 'Cupertino';
+    //persons[3].address.zip          = '95019';
 
     let toYaml = yaml.safeDump(persons, {schema:mySchema});
 
