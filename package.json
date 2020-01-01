@@ -9,7 +9,7 @@
     "deserializer"
   ],
   "homepage": "https://github.com/cutephoton/ts-yaml",
-  "main": "dist/test/index.js",
+  "main": "dist/ts-yaml/index.js",
   "typings": "dist/ts-yaml/index.d.ts",
   "module": "dist/ts-yaml/index.js",
   "author": "Brett Foster <fosterb@cutephoton.com>",
