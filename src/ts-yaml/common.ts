@@ -75,6 +75,16 @@ export type ArrayIterScalarType<T> =
         T extends Iterable<infer U> ? U :
             T;
 
+export function *iterConcat<T>(... iters:(IterableIterator<T>|undefined)[]) : IterableIterator<T> {
+    for (let iter of iters) {
+        if (iter) {
+            for (let elem of iter) {
+                yield elem;
+            }
+        }
+    }
+}
+
 //---------------------------------------------------------------------------
 // ---- Tag Functions -------------------------------------------------------
 

@@ -16,13 +16,17 @@ class Person {
     constructor() {}
 }
 
-@mySchemaBuilder.apply({noImplicitConstructorCheck:true, assignTypeSymbol: true})
+@mySchemaBuilder.apply({noImplicitConstructorCheck:true, assignTypeSymbol: true, includeImplicitProperties: true})
 class Address {
     street?        : string;
     city?          : string;
     zip?           : string;
     state?         : string;
-    constructor(useless:any) {}
+    @mySchemaBuilder.apply.blacklist()
+    neverKeepThis = "dumpIt";
+    constructor(useless:any) {
+        this.neverKeepThis = "BAAAAAAAAAAAAAAAAAD";
+    }
 }
 
 @mySchemaBuilder.apply({assignTypeSymbol: true})
@@ -130,6 +134,7 @@ test('Schema Builder - test', t => {
     persons[3].address.city         = 'Cupertino';
 
     //persons[3].address.zip          = '95019';
+    console.log(persons);
 
     let toYaml = yaml.safeDump(persons, {schema:mySchema});
 

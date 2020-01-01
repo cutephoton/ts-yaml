@@ -725,7 +725,7 @@ function detectType(state : State, object : any, explicit : boolean) {
 
     typeList = explicit ? state.explicitTypes : state.implicitTypes;
 
-    matchedType = builder.getYamlType(object);
+    matchedType = explicit && builder.getYamlType(object) || null;
 
     if (!matchedType) {
         for (let type of typeList.values()) {

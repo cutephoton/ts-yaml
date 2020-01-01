@@ -1,5 +1,5 @@
 import {Type, TypeOptions} from "../type";
-import {JsType, Kind, SimpleMap, Tag, TagURI} from "../common";
+import {iterConcat, JsType, Kind, SimpleMap, Tag, TagURI} from "../common";
 import {
     ConstructFunc,
     PredicateFunc,
@@ -74,6 +74,7 @@ export interface TypeBuilderOptions extends TypeOptions{
     ignoreBlacklistDefault?             : boolean;
     noImplicitConstructorCheck?         : boolean;
     allowFunctionAssignment?            : boolean;
+    includeImplicitProperties?          : boolean;
 }
 
 export interface PropertyDetail {
@@ -108,6 +109,7 @@ function tagSanitize(defaultName: string, tag?:Tag, base?:TagURI) : Tag {
 class DecoratorCollector<T> {
     private static gWeakMap = new WeakMap<YamlishConstructor<any>>();
     private _properties = new Map<PropertyKey,PropertyDetail>();
+    private _blacklist = new Set<PropertyKey>();
 
     protected constructor(
         readonly builder:SchemaBuilder,
@@ -116,6 +118,10 @@ class DecoratorCollector<T> {
 
     addProperty (detail : PropertyDetail) {
         this._properties.set(detail.key, detail);
+    }
+
+    addBlacklist (key : PropertyKey) {
+        this._blacklist.add(key);
     }
 
     updateProperty (key : PropertyKey, detail? : Partial<PropertyDetail>) {
@@ -135,6 +141,10 @@ class DecoratorCollector<T> {
 
     properties () : IterableIterator<PropertyDetail> {
         return this._properties.values();
+    }
+
+    blacklist () : IterableIterator<PropertyKey> {
+        return this._blacklist.values();
     }
 
     static get<T extends any> (builder:SchemaBuilder, obj:YamlishConstructor<T>|T) : DecoratorCollector<T>;
@@ -311,8 +321,8 @@ class TypeBuilder<T> {
         this.hasImplicitRepresent   = !this._funcRepresent;
         this.hasImplicitApply       = this.hasImplicitConstruct && !this._funcApply;
         this.hasImplicits           = this.hasImplicitConstruct||this.hasImplicitResolve||this.hasImplicitRepresent||this.hasImplicitApply;
-
         this.kind                   = options.kind || ((this.hasImplicitApply||this.hasImplicitRepresent) && Kind.Mapping) || Kind.Fallback;
+
         // without an implicitly generated apply function, this step provides no additional value
         if (this.hasImplicits) {
             this._initPropertyInfo();
@@ -359,6 +369,7 @@ class TypeBuilder<T> {
     private _initPropertyInfo() {
         // Build the blacklist:
         let blacklist = this._blacklist;
+        let decorated = this.decoratorCollector;
         this._blacklistPrefix = this.options.blacklistPrefix;
         // Unless otherwise state, import common problematic types:
         if (!this.options.ignoreBlacklistDefault) {
@@ -367,25 +378,25 @@ class TypeBuilder<T> {
         if (this.options.blacklist) {
             this.options.blacklist.forEach(x => blacklist.add(x));
         }
-        // Generate property listing, if specified
-        let properties = this.options.properties && this.options.properties.values();
-        // if an explicit set of properties wasn't previously set, see if there are
-        // decorated properties.
-        if (!properties){
-            let decorated = this.decoratorCollector;
-            if (decorated) {
-                properties = decorated.properties();
+
+        let properties : Set<PropertyDetail|PropertyKey> = new Set(Array.from(iterConcat(
+            this.options.properties && this.options.properties.values() || undefined,
+            decorated && decorated.properties() || undefined
+        )).sort((a,b)=>
+            ((typeof a === 'object' && a.priority) || 0) - ((typeof b === 'object' && b.priority) || 0))
+        );
+
+        if (decorated) {
+            for (let i of decorated.blacklist()){
+                blacklist.add(i);
             }
         }
-        if (properties) {
+
+        if (properties.size > 0) {
             //this._explicitProperties    = ( && new Set(Array.from(options.properties))) || undefined;
             let explicitYaml    = this._explicitYamlProperties  = new Map();
             let explicitObj     = this._explicitObjProperties   = new Map();
-            // sort properties in priority order
-            let props           = new Set(Array.from(properties).sort((a, b)=>
-                 ((typeof a === 'object' && a.priority) || 0) - ((typeof b === 'object' && b.priority) || 0)
-            ));
-            for (let keyOrProp of props.values()) {
+            for (let keyOrProp of properties.values()) {
                 if (typeof keyOrProp === 'object') {
                     let clone = {...keyOrProp};
                     if (!clone.yamlKey) {
@@ -400,6 +411,20 @@ class TypeBuilder<T> {
                     }
                     explicitObj.set(clone.key, clone);
                     explicitYaml.set(clone.yamlKey, clone);
+                } else {
+                    if (typeof keyOrProp === 'symbol') {
+                        throw new TypeBuilderError(this.target, `key is a symbol and cannot be mapped to yamlKey.`);
+                    }
+
+                    let simple : PropertyDetail = {
+                        key: keyOrProp,
+                        yamlKey: keyOrProp
+                    };
+                    if (this._blacklist.has(simple.key)) {
+                        throw new TypeBuilderError(this.target, `specified property '${typeof simple.key === 'symbol' ? '<<symbol>>' : simple.key}' is on the blacklist.`);
+                    }
+                    explicitObj.set(simple.key, simple);
+                    explicitYaml.set(simple.yamlKey, simple);
                 }
             }
         }
@@ -420,8 +445,25 @@ class TypeBuilder<T> {
 
         if (this._explicitObjProperties) {
             let objProperties = this._explicitObjProperties;
+            let incImplicit = this.options.includeImplicitProperties;
             function implicitRepresentProvided(data: any) : any {
                 let out : any = {};
+                if (incImplicit) {
+                    for (let key of Reflect.ownKeys(data)) {
+                        if (typeof key === 'symbol' || blacklist.has(key) || (blacklistPrefix && typeof key === 'string' && key.startsWith(blacklistPrefix))) {
+                            continue;
+                        }
+                        let val = data[key];
+                        if (typeof val === 'symbol') {
+                            continue;
+                        } else if (typeof val === 'function' && !allowFunctions) {
+                            continue;
+                        }
+                        if (!objProperties.has(key)){
+                            out[key] = data[key];
+                        }
+                    }
+                }
                 for (let item of objProperties.values()) {
                     if(item.validateObjectValue) {
                         item.validateObjectValue(data, data[item.key]);
@@ -475,9 +517,9 @@ class TypeBuilder<T> {
 
     private _createImplicitCreate () {
         if (this.options.skipConstructor) {
-            this._funcImplicitCreate = Object.create.bind(Object, this.target.prototype, null);
+            this._funcImplicitCreate = Object.create.bind(null, this.target.prototype, null);
         } else {
-            this._funcImplicitCreate = Reflect.construct.bind(Reflect, this.target, []);
+            this._funcImplicitCreate = Reflect.construct.bind(null, this.target, []);
         }
     }
 
@@ -490,9 +532,21 @@ class TypeBuilder<T> {
         let blacklistPrefix     = this._blacklistPrefix;
 
         if (this._explicitYamlProperties) {
-            let yamlProperties = this._explicitYamlProperties;
+            let yamlProperties = this._explicitYamlProperties!;
+            let objProperties = this._explicitObjProperties!;
+            let incImplicit = this.options.includeImplicitProperties;
 
             function implicitApplyProvided(this: () => object, data: SimpleMap<any>) {
+                if (incImplicit) {
+                    for (let key of Reflect.ownKeys(data)) {
+                        if (typeof key === 'symbol' || blacklist.has(key) || (blacklistPrefix && typeof key === 'string' && key.startsWith(blacklistPrefix))) {
+                            continue;
+                        }
+                        if (!objProperties.has(key)) {
+                            this[key] = data[key];
+                        }
+                    }
+                }
                 for (let item of yamlProperties.values()) {
                     if (Reflect.has(data, item.yamlKey!)) {
                         let value = data[item.yamlKey!];
@@ -538,6 +592,7 @@ export interface ExpectOptions {
 interface ApplyFunctions {
     (options? : TypeBuilderOptions) : ClassDecorator;
     property (options?:Partial<PropertyDetail>) : PropertyDecorator;
+    blacklist () : PropertyDecorator;
     expectType (options: ExpectOptions) : PropertyDecorator;
 }
 
@@ -643,6 +698,13 @@ namespace applyImpl {
         });
     }
 
+    function applyBlacklist(this: SchemaBuilder, options?: Partial<PropertyDetail>): PropertyDecorator {
+        return ((target: Object, propertyKey: string | symbol): void => {
+            let deco = DecoratorCollector.get(this, target);
+            deco.addBlacklist(propertyKey);
+        });
+    }
+
     function applyExpectTypes(this: SchemaBuilder, options: ExpectOptions) : PropertyDecorator {
         return ((target: Object, propertyKey: string | symbol): void => {
             let deco = DecoratorCollector.get(this, target);
@@ -659,6 +721,7 @@ namespace applyImpl {
         let out = applyClass.bind(thisArg) as ApplyFunctions;
         out.property = applyProperty.bind(thisArg);
         out.expectType = applyExpectTypes.bind(thisArg);
+        out.blacklist = applyBlacklist.bind(thisArg);
         return out;
     }
 }
