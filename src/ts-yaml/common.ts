@@ -17,6 +17,21 @@ const YamlType                      : unique symbol = Symbol('[[YamlType]]');
 //---------------------------------------------------------------------------
 // ---- Types ---------------------------------------------------------------
 
+export type JsType     = "undefined" | "object" | "boolean" | "number" | "string" | "function" | "symbol" | "bigint" | "any";
+/*
+export type XJsTypes    = "undefined" | "object" | "boolean" | "number" | "string" | "function" | "symbol" | "bigint" | "null" | "array";
+export function getXJsType (o : any) {
+    let ot = typeof o;
+    switch (ot) {
+        case "object":
+            return o === null ? "null" :
+                    Array.isArray(o) ? "array" :
+                        "object";
+        default:
+            return ot;
+    }
+}
+*/
 // Branded Tag Strings
 //    branded strings to provide context to developers for what a string means
 export type TagWithKind     = string & {__TAG__     : "TagWithKind"};

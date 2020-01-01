@@ -1,5 +1,5 @@
 import {Type, TypeOptions} from "../type";
-import {Kind, SimpleMap, Tag, TagURI} from "../common";
+import {JsType, Kind, SimpleMap, Tag, TagURI} from "../common";
 import {
     ConstructFunc,
     PredicateFunc,
@@ -56,7 +56,7 @@ interface YamlishInstance {
 }
 
 export type ApplyFunc                   = (data:any)=>void;
-
+export type ValidateFunc                = (target:any,data:any)=>void;
 export type InstPredicateFunc           = (() => boolean);
 export type InstRepresentFunc           = (style?:string)=>any;
 export type PropertyApply               = ((target:any, value:any) => void);
@@ -82,7 +82,13 @@ export interface PropertyDetail {
     defaultValue?                       : any|DefaultValueGenerator;
     yamlKey?                            : string|number;
     priority?                           : number;
-}
+    validateYamlValue?                  : ValidateFunc;
+    validateObjectValue?                : ValidateFunc;
+}/*
+export interface PropertyValidation {
+    mustBeInstanceOf                    : AnyConstructor<any>;
+    distinctValue                       : Set<any>;
+}*/
 
 function tagSanitize(defaultName: string, tag?:Tag, base?:TagURI) : Tag {
     let out = tag || defaultName as Tag;
@@ -101,7 +107,7 @@ function tagSanitize(defaultName: string, tag?:Tag, base?:TagURI) : Tag {
 
 class DecoratorCollector<T> {
     private static gWeakMap = new WeakMap<YamlishConstructor<any>>();
-    private _properties = new Set<PropertyDetail>();
+    private _properties = new Map<PropertyKey,PropertyDetail>();
 
     protected constructor(
         readonly builder:SchemaBuilder,
@@ -109,7 +115,22 @@ class DecoratorCollector<T> {
     ) {}
 
     addProperty (detail : PropertyDetail) {
-        this._properties.add(detail);
+        this._properties.set(detail.key, detail);
+    }
+
+    updateProperty (key : PropertyKey, detail? : Partial<PropertyDetail>) {
+        if (!this._properties.has(key)) {
+            let data ={...detail, key:key};
+            this._properties.set(key, data);
+        } else if (detail) {
+            let data = this._properties.get(key)!;
+            Object.assign(data,detail);
+            this._properties.set(key, data);
+        }
+    }
+
+    hasProperty (key : PropertyKey) : boolean {
+        return this._properties.has(key);
     }
 
     properties () : IterableIterator<PropertyDetail> {
@@ -192,6 +213,7 @@ class TypeBuilder<T> {
     private _funcImplicitCreate?        : () => T;
     private _resolvedOptions?           : TypeOptions;
     readonly type                       : Type;
+    readonly decoratorCollector         : DecoratorCollector<T>|null;
 
     constructor(
         readonly schema                 : SchemaBuilder,
@@ -204,6 +226,7 @@ class TypeBuilder<T> {
         this.name                   = target.name;
         this.tag                    = tagSanitize(this.name, options.tag, options.baseTagURI);
         this._blacklist             = new Set();
+        this.decoratorCollector     = DecoratorCollector.unlink(schema, target);
         //this._knownSetters          = new Set();
 
         if (Reflect.has(target.prototype, YamlType)) {
@@ -293,7 +316,6 @@ class TypeBuilder<T> {
         // without an implicitly generated apply function, this step provides no additional value
         if (this.hasImplicits) {
             this._initPropertyInfo();
-
             if (this.hasImplicitConstruct) {
                 if (this.target.length>0 && !this.options.noImplicitConstructorCheck) {
                     throw new TypeBuilderError(this.target, `has implicit @@YamlConstruct, but constructor needs ${this.target.length} arguments.`);
@@ -332,10 +354,6 @@ class TypeBuilder<T> {
                 value:          this.type
             })
         }
-    }
-
-    get decoratorCollector () : DecoratorCollector<T>|null {
-        return DecoratorCollector.get(this.schema, this.target, true);
     }
 
     private _initPropertyInfo() {
@@ -405,7 +423,14 @@ class TypeBuilder<T> {
             function implicitRepresentProvided(data: any) : any {
                 let out : any = {};
                 for (let item of objProperties.values()) {
+                    if(item.validateObjectValue) {
+                        item.validateObjectValue(data, data[item.key]);
+                    }
                     if (Reflect.has(data, item.key)) {
+                        let value = data[item.key];
+                        if (item.validateYamlValue) {
+                            item.validateYamlValue(data,value);
+                        }
                         out[item.yamlKey!] = data[item.key];
                     }
                 }
@@ -470,7 +495,11 @@ class TypeBuilder<T> {
             function implicitApplyProvided(this: () => object, data: SimpleMap<any>) {
                 for (let item of yamlProperties.values()) {
                     if (Reflect.has(data, item.yamlKey!)) {
-                        Reflect.set(this, item.key, data[item.yamlKey!]);
+                        let value = data[item.yamlKey!];
+                        if (item.validateObjectValue) {
+                            item.validateObjectValue(data,value);
+                        }
+                        Reflect.set(this, item.key, value);
                     } else if ('defaultValue' in item) {
                         Reflect.set(this, item.key, typeof item.defaultValue === 'function' ? item.defaultValue() : item.defaultValue);
                     }
@@ -494,14 +523,160 @@ class TypeBuilder<T> {
     }
 }
 
+export interface ExpectOptions {
+    jsType?         : JsType;
+    instanceOf?     : Set<any>|any|null;
+    entries?        : Map<PropertyKey,ExpectOptions>|null;
+    isOptional?     : boolean;
+    isNullable?     : boolean;
+    isArray?        : boolean;
+    accept?         : Set<any>|null;
+    min?            : number|null;
+    max?            : number|null;
+}
+
+interface ApplyFunctions {
+    (options? : TypeBuilderOptions) : ClassDecorator;
+    property (options?:Partial<PropertyDetail>) : PropertyDecorator;
+    expectType (options: ExpectOptions) : PropertyDecorator;
+}
+
+namespace applyImpl {
+    function sanitizeExpect (options: ExpectOptions):Required<ExpectOptions> {
+        let instOf      = options.instanceOf;
+        let isArray     = false;
+
+        if (instOf) {
+            if (typeof instOf === 'object' && instOf instanceof Set) {
+                let elems = Array.from(instOf);
+                isArray = elems.every(x => x.isPrototypeOf(Array));
+            } else if (typeof instOf === 'function') {
+                isArray = instOf.isPrototypeOf(Array);
+            }
+        }
+
+        let clone :Required<ExpectOptions> = {
+            min                 : null,
+            max                 : null,
+            ...options,
+            isArray             : options.isArray === undefined ? isArray : !!options.isArray,
+            jsType              : options.jsType        || (instOf ? 'object' : "any"),
+            isNullable          : options.isNullable    ||false,
+            isOptional          : options.isOptional    ||false,
+            instanceOf          : options.instanceOf    ||null,
+            accept              : options.accept        ? new Set ( Array.from(options.accept.values()) )   : null,
+            entries             : options.entries       ? new Map ( Array.from(options.entries.entries()) ) : null,
+        };
+
+        return clone;
+    }
+
+    function mkErrMsg(target:any, key : PropertyKey, msg : string, expect: any, got: any):string {
+        return `${msg} : ${target.name}[${typeof key === 'symbol'?'<<symbol>>':key}] expects '${expect}' but got '${got}' instead.`;
+    }
+
+    function testExpect (options: Required<ExpectOptions>, key : PropertyKey, target:any, data:any):void {
+        let type = typeof data;
+
+        if (!(type === options.jsType || options.jsType === 'any')) {
+            throw new TypeError(mkErrMsg(target,key,'type', options.jsType, type));
+        }
+
+        if (type === 'number') {
+            if (options.max !== null && data >= options.max) {
+                throw new TypeError(mkErrMsg(target,key,'maximum value', options.max, data));
+            } else if (options.min !== null && data < options.min) {
+                throw new TypeError(mkErrMsg(target,key,'minimum value', options.min, data));
+            }
+        }
+
+        if ((options.isOptional && data === undefined)||(options.isNullable && data === null)) {
+            return;
+        }
+
+        if (options.isArray) {
+            if (!Array.isArray(data)) {
+                throw new TypeError(mkErrMsg(target,key,'array', '[]', 'non-array'));
+            }
+        } else {
+            if (Array.isArray(data)) {
+                throw new TypeError(mkErrMsg(target,key,'array', 'object', 'array'));
+            }
+            if (options.instanceOf !== null) {
+                if (options.instanceOf instanceof Set) {
+                    let valid = false;
+                    for (let item of options.instanceOf.values()) {
+                        if (!(data instanceof item)) {
+                            valid = true;
+                            break;
+                        }
+                    }
+                    if (!valid) {
+                        throw new TypeError(mkErrMsg(target,key,'instance of', Array.from(options.instanceOf.values()).map(x=>typeof x==='function'?x.name:'?').join(', '), data.prototype.constructor.name));
+                    }
+                } else {
+                    if (!(data instanceof options.instanceOf)) {
+                        throw new TypeError(mkErrMsg(target,key,'instance of', options.instanceOf.name, data.prototype.constructor.name));
+
+                    }
+                }
+            }
+        }
+
+        if (options.accept && !options.accept.has(data)) {
+            throw new TypeError(mkErrMsg(target,key,'accepts only one of', Array.from(options.accept).map(x=>typeof x==='symbol'?'<<symbol>>':`'${x}'`).join(', '), data));
+        }
+    }
+
+
+    function applyClass(this: SchemaBuilder, options?: TypeBuilderOptions): ClassDecorator {
+        return (<T extends Function>(target: T): T => {
+            this.addClass(target as unknown as YamlishConstructor<any>, options);
+            return target;
+        });
+    }
+
+    function applyProperty(this: SchemaBuilder, options?: Partial<PropertyDetail>): PropertyDecorator {
+        return ((target: Object, propertyKey: string | symbol): void => {
+            let deco = DecoratorCollector.get(this, target);
+            deco.updateProperty(propertyKey, options);
+        });
+    }
+
+    function applyExpectTypes(this: SchemaBuilder, options: ExpectOptions) : PropertyDecorator {
+        return ((target: Object, propertyKey: string | symbol): void => {
+            let deco = DecoratorCollector.get(this, target);
+            let vopts = sanitizeExpect(options);
+            let func = testExpect.bind(null,vopts, propertyKey);
+            deco.updateProperty(propertyKey, {
+                validateObjectValue     : func,
+                validateYamlValue       : func
+            });
+        });
+    }
+
+    export function bind(thisArg:SchemaBuilder) : ApplyFunctions {
+        let out = applyClass.bind(thisArg) as ApplyFunctions;
+        out.property = applyProperty.bind(thisArg);
+        out.expectType = applyExpectTypes.bind(thisArg);
+        return out;
+    }
+}
+
+
+
+
 export class SchemaBuilder {
     private _types = new Set<Type>();
     private _includes = new Set<Schema>();
     private _resolved? : Schema;
+    readonly apply : ApplyFunctions;
 
     constructor(
         readonly baseURI? : TagURI
-    ) {}
+    ) {
+        this.apply = applyImpl.bind(this);
+    }
 
     add (item : Type|Schema) {
         if (this._resolved) {
@@ -521,7 +696,7 @@ export class SchemaBuilder {
         return type;
     }
 
-    apply (options? : TypeBuilderOptions) : ClassDecorator {
+    /*apply (options? : TypeBuilderOptions) : ClassDecorator {
         return (<T extends Function>(target:T) : T => {
             this.addClass(target as unknown as YamlishConstructor<any>, options);
             return target;
@@ -531,11 +706,16 @@ export class SchemaBuilder {
     applyProperty (options?:Partial<PropertyDetail>) : PropertyDecorator {
         return ((target: Object, propertyKey: string | symbol) : void => {
             let deco = DecoratorCollector.get(this, target);
-            let deco2 = DecoratorCollector.get(this, target);
-            let x = deco === deco2;
-            deco.addProperty({key:propertyKey,...options});
+            deco.updateProperty(propertyKey,options);
         });
-    }
+    }*/
+
+    /*applyExpect (options?:Partial<PropertyDetail>) : PropertyDecorator {
+        return ((target: Object, propertyKey: string | symbol) : void => {
+            let deco = DecoratorCollector.get(this, target);
+            deco.updateProperty(propertyKey,options);
+        });
+    }*/
 
     resolve () : Schema {
         if (this._resolved){

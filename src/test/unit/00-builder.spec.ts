@@ -62,16 +62,26 @@ class Address3 {
         }
     }
 }
+/*
 
+    @mySchemaBuilder.apply.expectType({
+        jsType: 'string',
+        accept: new Set(['CA','CO', 'AK', 'NY'])
+    })
+ */
 @mySchemaBuilder.apply()
 class Address4 {
-    @mySchemaBuilder.applyProperty()
+    @mySchemaBuilder.apply.property()
     street?        : string;
-    @mySchemaBuilder.applyProperty({yamlKey:'blahcity'})
+    @mySchemaBuilder.apply.property({yamlKey:'blahcity'})
     city?          : string;
-    @mySchemaBuilder.applyProperty({yamlKey:'blahzip', defaultValue: 11111})
+    @mySchemaBuilder.apply.property({yamlKey:'blahzip', defaultValue: 11111})
     zip?           : string;
-    @mySchemaBuilder.applyProperty({yamlKey:'blahstate'})
+    @mySchemaBuilder.apply.property({yamlKey:'blahstate'})
+    @mySchemaBuilder.apply.expectType({
+        jsType : 'string',
+        accept : new Set(['CA','CO','NY'])
+    })
     state?         : string;
     constructor() {}
 }
@@ -116,8 +126,9 @@ test('Schema Builder - test', t => {
     persons[3].first                = 'Killian';
     persons[3].last                 = 'Gotcha';
     persons[3].address.street       = '123 Piggy St.';
-    persons[3].address.state        = 'California';
+    persons[3].address.state        = 'CA';
     persons[3].address.city         = 'Cupertino';
+
     //persons[3].address.zip          = '95019';
 
     let toYaml = yaml.safeDump(persons, {schema:mySchema});
