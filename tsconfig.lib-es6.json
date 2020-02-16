@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base",
+  "compilerOptions": {
+    "outDir": "./dist/lib-es6",
+    "module": "es6",
+    "rootDir": "./src/ts-yaml"
+  },
+  "exclude": [
+    "./src/bin",
+    "./src/test"
+  ]
+}

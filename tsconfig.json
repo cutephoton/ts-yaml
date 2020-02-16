@@ -1,13 +1,8 @@
 {
   "extends": "./tsconfig.base",
+
   "compilerOptions": {
-    "rootDir": "src/",
-    "outDir": "./dist",
-    "paths": {
-      "@cutephoton/ts-yaml" : ["./src/ts-yaml"]
-    }
+    "module": "commonjs",
+    "outDir": "./dist/main"
   },
-  "include": [
-    "src/**/*"
-  ]
 }

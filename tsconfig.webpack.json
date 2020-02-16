@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig",
+  "compilerOptions": {
+    "outDir": "./dist/lib-webpack",
+    "module": "es6",
+    "rootDir": "./src/ts-yaml"
+  },
+  "exclude": [
+    "./src/bin",
+    "./src/test"
+  ]
+}

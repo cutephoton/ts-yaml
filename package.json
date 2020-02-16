@@ -9,11 +9,16 @@
     "deserializer"
   ],
   "homepage": "https://github.com/cutephoton/ts-yaml",
-  "main": "dist/ts-yaml/index.js",
-  "typings": "dist/ts-yaml/index.d.ts",
-  "module": "dist/ts-yaml/index.js",
+  "main": "dist/lib/index.js",
+  "typings": "dist/lib/index.d.ts",
   "author": "Brett Foster <fosterb@cutephoton.com>",
-  "files": ["dist/ts-yaml", "README.md"],
+  "files": [
+    "dist/lib-webpack/ts-yaml.bundle.*",
+    "dist/lib-webpack/*.d.ts",
+    "dist/lib-webpack/**/*.d.ts",
+    "dist/lib",
+    "README.md"
+  ],
   "contributors": [
     "Vladimir Zapparov <dervus.grim@gmail.com>",
     "Aleksey V Zapparov <ixti@member.fsf.org> (http://www.ixti.net/)",
@@ -21,30 +26,37 @@
     "Martin Grenfell <martin.grenfell@gmail.com> (http://got-ravings.blogspot.com)"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build-libs": "tsc -p tsconfig.lib-cjs.json",
+    "build-webpack-release": "tsc -p tsconfig.webpack.json && webpack --mode=production",
+    "build-webpack-development": "tsc -p tsconfig.webpack.json && webpack --mode=development",
+    "build-main": "tsc -p tsconfig.json",
     "test": "ava",
-    "clean": "rm -rf build",
-    "prepare" :"npm run clean && npm run build",
+    "clean": "rm -rf dist",
+    "prepare": "npm run clean && npm run build-libs && npm run build-webpack-release && npm run build-main",
     "pack": "npm pack"
   },
   "license": "MIT",
-  "dependencies": {
-    "ts-node": "^8.5.4",
-    "ava": "^2.4.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^12.12.5",
+    "argparse": "^1.0.10",
+    "ava": "^2.4.0",
+    "declaration-bundler-webpack-plugin": "^1.0.3",
+    "ts-loader": "^6.2.1",
+    "ts-node": "^8.5.4",
+    "tsconfig-paths-webpack-plugin": "^3.2.0",
     "typescript": "^3.7.3",
-    "argparse": "^1.0.10"
+    "webpack": "^4.41.5",
+    "webpack-cli": "^3.3.10"
   },
   "ava": {
     "failFast": true,
     "verbose": true,
     "files": [
-      "dist/**/*.spec.js"
+      "dist/main/**/*.spec.js"
     ],
     "sources": [
-      "dist/**/*.js"
+      "dist/main/**/*.js"
     ]
   }
 }

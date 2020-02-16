@@ -16,12 +16,19 @@
     "pretty": true /* Stylize errors and messages using color and context. */,
     "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
     "noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */,
-    "lib": ["es2018", "dom"],
+    "lib": ["es2018"],
     "types": ["node"],
-    "typeRoots": ["node_modules/@types", "src/types"],
+    "typeRoots": ["node_modules/@types"],
     "experimentalDecorators": true,
-    "baseUrl": "./"
+    "outDir": "./dist/base",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
   },
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules"
   ]
