@@ -128,22 +128,22 @@ test('Schema Builder - test', t => {
     persons[3].address.city         = 'Cupertino';
 
     //persons[3].address.zip          = '95019';
-    console.log(persons);
+    t.log(persons);
 
     let toYaml = yaml.safeDump(persons, {schema:mySchema});
 
-    console.log("---------------------\nOutput\n---------------------\n\n%s\n\n---------------------", toYaml);
+    t.log("---------------------\nOutput\n---------------------\n\n%s\n\n---------------------", toYaml);
 
-    console.log(`getYamlType(P0): ${builder.getYamlType(persons[0].address)}`);
-    console.log(`getYamlType(P1): ${builder.getYamlType(persons[1].address)}`);
-    console.log(`getYamlType(P1): ${builder.getYamlType(persons[2].address)}`);
-    console.log(`getYamlType(Address): ${builder.getYamlType(Address)}`);
-    console.log(`getYamlType(Address2): ${builder.getYamlType(Address2)}`);
-    console.log(`getYamlType(Address3): ${builder.getYamlType(Address3)}`);
+    t.log(`getYamlType(P0): ${builder.getYamlType(persons[0].address)}`);
+    t.log(`getYamlType(P1): ${builder.getYamlType(persons[1].address)}`);
+    t.log(`getYamlType(P1): ${builder.getYamlType(persons[2].address)}`);
+    t.log(`getYamlType(Address): ${builder.getYamlType(Address)}`);
+    t.log(`getYamlType(Address2): ${builder.getYamlType(Address2)}`);
+    t.log(`getYamlType(Address3): ${builder.getYamlType(Address3)}`);
 
     let fromYaml = yaml.safeLoad(toYaml, {schema:mySchema});
 
-    console.log(fromYaml);
+    t.log(fromYaml);
 
     t.pass();
 });

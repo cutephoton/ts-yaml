@@ -12,26 +12,11 @@ const YamlType                      : unique symbol = Symbol('[[YamlType]]');
 //      https://tools.ietf.org/html/rfc4151 (tag)
 //      https://tools.ietf.org/html/rfc3986 (uri)
 //      https://tools.ietf.org/html/rfc1035 (domain)
-
-
 //---------------------------------------------------------------------------
 // ---- Types ---------------------------------------------------------------
 
 export type JsType     = "undefined" | "object" | "boolean" | "number" | "string" | "function" | "symbol" | "bigint" | "any";
-/*
-export type XJsTypes    = "undefined" | "object" | "boolean" | "number" | "string" | "function" | "symbol" | "bigint" | "null" | "array";
-export function getXJsType (o : any) {
-    let ot = typeof o;
-    switch (ot) {
-        case "object":
-            return o === null ? "null" :
-                    Array.isArray(o) ? "array" :
-                        "object";
-        default:
-            return ot;
-    }
-}
-*/
+
 // Branded Tag Strings
 //    branded strings to provide context to developers for what a string means
 export type TagWithKind     = string & {__TAG__     : "TagWithKind"};
@@ -277,94 +262,3 @@ export interface BufferInfo {
 export interface Buffer extends BufferInfo {
     content     : string;
 }
-
-/*
-export class Report implements Report.Details {
-    readonly document               : YamlDocument;
-    readonly message                : string;
-    readonly mark?                  : Mark;
-    readonly classification?        : Report.Classification;
-    readonly severity?              : Report.Severity;
-
-    constructor (info:Report.Details);
-    constructor (document:YamlDocument, message : string, mark? : Mark, severity? : Report.Severity, classification? : Report.Classification);
-    constructor(
-        documentOrReport:YamlDocument|Report.Details, message? : string, mark? : Mark, severity? : Report.Severity, classification? : Report.Classification
-    ) {
-        if (YamlDocument.isDocument(documentOrReport)) {
-            if (!message) {
-                throw new TypeError('Long constructor was missing message.');
-            }
-            this.document           = documentOrReport;
-            this.message            = message;
-            this.mark               = mark;
-            this.classification     = classification                        || Report.Classification.General;
-            this.severity           = severity                              || Report.Severity.Fatal;
-        } else if (Report.isDetail(documentOrReport)) {
-            this.document           = documentOrReport.document;
-            this.message            = documentOrReport.message;
-            this.mark               = documentOrReport.mark;
-            this.classification     = documentOrReport.classification       || Report.Classification.General;
-            this.severity           = documentOrReport.severity             || Report.Severity.Fatal;
-        } else {
-            throw new TypeError('Unable to decode parameters to Report.');
-        }
-    }
-
-    toString (compact? : boolean) {
-        return `Report(${this.message})`;
-    }
-}
-export namespace Report {
-    export enum Classification {
-        General= 1,
-        Syntax,
-        Decoding,
-        Encoding,
-    }
-
-    export enum Severity {
-        Info = 1,
-        Warning,
-        Fatal,
-    }
-
-    export interface Details {
-        readonly document               : YamlDocument;
-        readonly message                : string;
-        readonly mark?                  : Mark;
-        readonly severity?              : Severity;
-        readonly classification?        : Classification;
-    }
-
-    export function isDetail (obj : any|Details) : obj is Details {
-        return (typeof obj === 'object' && 'document' in obj && 'message' in obj);
-    }
-}
-
-export interface YamlListener {
-    onReport?       (report : Report);
-    onLoaded?       (document : YamlDocument);
-    onSaved?        (document : YamlDocument);
-    onError?        (document : YamlDocument, exception : YamlException);
-}
-
- */
-
-/*
-export function extend(target, source) {
-    var index, length, key, sourceKeys;
-
-    if (source) {
-        sourceKeys = Object.keys(source);
-
-        for (index = 0, length = sourceKeys.length; index < length; index += 1) {
-            key = sourceKeys[index];
-            target[key] = source[key];
-        }
-    }
-
-    return target;
-}
-
-*/

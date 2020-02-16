@@ -726,9 +726,6 @@ namespace applyImpl {
     }
 }
 
-
-
-
 export class SchemaBuilder {
     private _types = new Set<Type>();
     private _includes = new Set<Schema>();
